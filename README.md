@@ -1,236 +1,282 @@
-# Ok
-
-
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                Are you sure you want to delete <strong id="clientName"></strong>?
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirmDelete">Delete</button>
-            </div>
-        </div>
-    </div>
-</div>
-______
-
-
-<!-- Trigger Delete Modal -->
-                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal"
-                        data-clientid="@client.ClientID" data-clientname="@client.FirstName @client.LastName">
-                        Delete
-                    </button>
-
-
-                    _______
-
-                    Separating the JavaScript code and incorporating jQuery and AJAX is a great way to improve organization and maintainability. Here’s how you can implement it:
+Here’s how you can build an **Add Employee** page in ASP.NET MVC with a dynamic **Add Education** feature using JavaScript (and optionally jQuery) without Entity Framework.
 
 ---
 
-### **1. External JavaScript File**
+### **1. Overview of the Page**
+- The employee form will include fields like name, age, and department.
+- There will be a dynamic "Add Education" section where:
+  - One row is mandatory.
+  - Users can add or delete additional education rows dynamically.
 
-Create an external JavaScript file (e.g., `deleteClient.js`) and include it in your view.
+---
 
-#### `wwwroot/js/deleteClient.js`
+### **2. Stored Procedure**
+The stored procedure should accept employee details and education as parameters. It’s assumed the SP will be something like:
+
+```sql
+CREATE PROCEDURE SP_AddEmployee
+    @EmployeeName NVARCHAR(100),
+    @Age INT,
+    @Department NVARCHAR(100),
+    @EducationDetails NVARCHAR(MAX) -- Pass education details as JSON or CSV
+AS
+BEGIN
+    -- Example insert into Employee table
+    INSERT INTO Employees (Name, Age, Department)
+    VALUES (@EmployeeName, @Age, @Department);
+
+    -- Fetch the last inserted EmployeeID
+    DECLARE @EmployeeID INT = SCOPE_IDENTITY();
+
+    -- Parse and insert education details
+    -- (Assume JSON or CSV is parsed in SP or externally before being inserted into an Education table)
+    -- Example:
+    -- INSERT INTO Education (EmployeeID, Degree, Institution)
+END
+```
+
+You can modify this according to your setup.
+
+---
+
+### **3. View**
+
+#### `AddEmployee.cshtml`
+This view includes a form for employee details and a dynamic education section using JavaScript.
+
+```html
+@{
+    ViewBag.Title = "Add Employee";
+}
+
+<h2>Add Employee</h2>
+
+<form id="addEmployeeForm">
+    <div class="mb-3">
+        <label for="employeeName" class="form-label">Employee Name</label>
+        <input type="text" id="employeeName" name="employeeName" class="form-control" required />
+    </div>
+
+    <div class="mb-3">
+        <label for="age" class="form-label">Age</label>
+        <input type="number" id="age" name="age" class="form-control" required />
+    </div>
+
+    <div class="mb-3">
+        <label for="department" class="form-label">Department</label>
+        <input type="text" id="department" name="department" class="form-control" required />
+    </div>
+
+    <h4>Education</h4>
+    <div id="educationContainer">
+        <!-- Dynamic rows will go here -->
+        <div class="row mb-2 education-row">
+            <div class="col-md-5">
+                <input type="text" name="degree[]" class="form-control" placeholder="Degree" required />
+            </div>
+            <div class="col-md-5">
+                <input type="text" name="institution[]" class="form-control" placeholder="Institution" required />
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-danger remove-education" disabled>Delete</button>
+            </div>
+        </div>
+    </div>
+    <button type="button" id="addEducation" class="btn btn-primary">Add Education</button>
+
+    <div class="mt-4">
+        <button type="submit" class="btn btn-success">Submit</button>
+    </div>
+</form>
+
+<!-- Include External JS -->
+<script src="~/js/addEmployee.js"></script>
+```
+
+---
+
+### **4. External JavaScript File**
+
+#### `wwwroot/js/addEmployee.js`
 
 ```javascript
 $(document).ready(function () {
-    var deleteClientId = 0;
-
-    // When the modal is triggered
-    $('#deleteModal').on('show.bs.modal', function (event) {
-        var button = $(event.relatedTarget); // Button that triggered the modal
-        deleteClientId = button.data('clientid'); // Extract client ID
-        var clientName = button.data('clientname'); // Extract client name
-
-        // Update the modal content
-        $('#clientName').text(clientName);
+    // Add a new education row
+    $("#addEducation").on("click", function () {
+        var newRow = `
+            <div class="row mb-2 education-row">
+                <div class="col-md-5">
+                    <input type="text" name="degree[]" class="form-control" placeholder="Degree" required />
+                </div>
+                <div class="col-md-5">
+                    <input type="text" name="institution[]" class="form-control" placeholder="Institution" required />
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-danger remove-education">Delete</button>
+                </div>
+            </div>`;
+        $("#educationContainer").append(newRow);
     });
 
-    // Confirm delete button click
-    $('#confirmDelete').on('click', function () {
+    // Remove an education row
+    $(document).on("click", ".remove-education", function () {
+        if ($(".education-row").length > 1) {
+            $(this).closest(".education-row").remove();
+        } else {
+            alert("At least one education row is mandatory.");
+        }
+    });
+
+    // Submit form via AJAX
+    $("#addEmployeeForm").on("submit", function (e) {
+        e.preventDefault();
+
+        // Gather data
+        var employeeData = {
+            employeeName: $("#employeeName").val(),
+            age: $("#age").val(),
+            department: $("#department").val(),
+            educationDetails: []
+        };
+
+        // Gather education details
+        $(".education-row").each(function () {
+            var degree = $(this).find("input[name='degree[]']").val();
+            var institution = $(this).find("input[name='institution[]']").val();
+            employeeData.educationDetails.push({ degree: degree, institution: institution });
+        });
+
+        // Send data via AJAX
         $.ajax({
-            url: '/ControllerName/DeleteClientMasterTODB', // Update with your controller's name
+            url: '/Employee/AddEmployee', // Update to match your controller and action
             type: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({ clientId: deleteClientId }),
+            data: JSON.stringify(employeeData),
             success: function (response) {
                 if (response.success) {
-                    alert(response.message || 'Client deleted successfully!');
-                    location.reload(); // Refresh the page
+                    alert(response.message || "Employee added successfully!");
+                    window.location.reload(); // Reload or redirect
                 } else {
-                    alert(response.message || 'Error deleting client.');
+                    alert(response.message || "Error adding employee.");
                 }
             },
             error: function (xhr, status, error) {
-                console.error('Error:', error);
-                alert('An unexpected error occurred.');
+                console.error("Error:", error);
+                alert("An unexpected error occurred.");
             }
         });
-
-        // Close the modal
-        $('#deleteModal').modal('hide');
     });
 });
 ```
 
 ---
 
-### **2. Main View**
+### **5. Controller**
 
-Update your main view to include the external JavaScript file:
-
-#### `Index.cshtml`
-
-```html
-@model IEnumerable<dynamic>
-
-<table class="table">
-    <thead>
-        <tr>
-            <th>ClientID</th>
-            <th>FirstName</th>
-            <th>LastName</th>
-            <th>Country</th>
-            <th>City</th>
-            <th>Phone</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var client in Model)
-        {
-            <tr>
-                <td>@client.ClientID</td>
-                <td>@client.FirstName</td>
-                <td>@client.LastName</td>
-                <td>@client.Country</td>
-                <td>@client.City</td>
-                <td>@client.Phone</td>
-                <td>
-                    <!-- Trigger Delete Modal -->
-                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal"
-                        data-clientid="@client.ClientID" data-clientname="@client.FirstName @client.LastName">
-                        Delete
-                    </button>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
-
-<!-- Include the Delete Modal Partial -->
-@Html.Partial("_DeleteModal")
-
-<!-- Include External JS -->
-<script src="~/js/deleteClient.js"></script>
-```
-
----
-
-### **3. Controller**
-
-The controller remains the same, but here it is for reference:
-
-#### Controller Code
+#### `EmployeeController.cs`
 
 ```csharp
 [HttpPost]
-public JsonResult DeleteClientMasterTODB(int clientId)
+public JsonResult AddEmployee([FromBody] EmployeeRequestModel employee)
 {
     try
     {
-        clsmasterdelete deleteOperation = new clsmasterdelete();
-        var response = deleteOperation.ExecuteDelete(clientId);
+        // Call your custom class to handle database operations
+        clsmasteradd addOperation = new clsmasteradd();
 
-        if (response.StatusCode == 1) // Assuming 1 means success
+        // Convert education details to JSON or a string format as needed by the SP
+        string educationDetails = Newtonsoft.Json.JsonConvert.SerializeObject(employee.EducationDetails);
+
+        // Call the method to execute SP
+        int result = addOperation.ExecuteAdd(
+            employee.EmployeeName,
+            employee.Age,
+            employee.Department,
+            educationDetails
+        );
+
+        if (result == 1) // Assuming 1 means success
         {
-            return Json(new { success = true, message = response.StatusMessage });
+            return Json(new { success = true, message = "Employee added successfully." });
         }
         else
         {
-            return Json(new { success = false, message = response.StatusMessage });
+            return Json(new { success = false, message = "Failed to add employee." });
         }
     }
     catch (Exception ex)
     {
-        return Json(new { success = false, message = "An error occurred while deleting the client: " + ex.Message });
+        return Json(new { success = false, message = "Error: " + ex.Message });
     }
 }
 ```
 
 ---
 
-### **4. Delete Modal**
+### **6. Request Model**
 
-The modal remains unchanged:
+#### `EmployeeRequestModel.cs`
 
-#### `_DeleteModal.cshtml`
+```csharp
+public class EmployeeRequestModel
+{
+    public string EmployeeName { get; set; }
+    public int Age { get; set; }
+    public string Department { get; set; }
+    public List<EducationDetail> EducationDetails { get; set; }
+}
 
-```html
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                Are you sure you want to delete <strong id="clientName"></strong>?
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirmDelete">Delete</button>
-            </div>
-        </div>
-    </div>
-</div>
+public class EducationDetail
+{
+    public string Degree { get; set; }
+    public string Institution { get; set; }
+}
 ```
 
 ---
 
-### **Advantages of This Approach**
+### **7. Database Handler**
 
-1. **Code Separation**:
-   - JavaScript is handled in an external file, making the view cleaner and easier to maintain.
+#### `clsmasteradd.cs`
 
-2. **Reusability**:
-   - The modal can be reused across multiple views or tables.
+```csharp
+using System.Data;
+using System.Data.SqlClient;
+using System.Configuration;
 
-3. **jQuery Simplifies AJAX**:
-   - Readable and widely used, making it easier to integrate with other libraries.
+public class clsmasteradd
+{
+    private string _connectionString;
 
-4. **Scalability**:
-   - As your project grows, the separation of concerns ensures better manageability.
+    public clsmasteradd()
+    {
+        _connectionString = ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString;
+    }
 
----
+    public int ExecuteAdd(string employeeName, int age, string department, string educationDetails)
+    {
+        using (SqlConnection conn = new SqlConnection(_connectionString))
+        {
+            SqlCommand cmd = new SqlCommand("SP_AddEmployee", conn);
+            cmd.CommandType = CommandType.StoredProcedure;
 
-### **5. Stored Procedure**
+            cmd.Parameters.AddWithValue("@EmployeeName", employeeName);
+            cmd.Parameters.AddWithValue("@Age", age);
+            cmd.Parameters.AddWithValue("@Department", department);
+            cmd.Parameters.AddWithValue("@EducationDetails", educationDetails);
 
-Ensure the `SP_delete_Master` stored procedure is correct:
-
-```sql
-CREATE PROCEDURE SP_delete_Master
-    @ClientID INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    -- Your delete logic
-    DELETE FROM Clients WHERE ClientID = @ClientID;
-
-    -- Return status code and message
-    SELECT 1 AS StatusCode, 'Client deleted successfully.' AS StatusMessage;
-END
+            conn.Open();
+            return cmd.ExecuteNonQuery(); // Assuming SP returns rows affected or 1 for success
+        }
+    }
+}
 ```
 
 ---
 
-Now you have a scalable, maintainable, and modern implementation. Let me know if you need any adjustments!
+### **Benefits of This Approach**
+- Dynamic addition/removal of education rows.
+- Clean and modular code with separation of concerns.
+- Reusable JavaScript and server-side logic.
+
+Let me know if you need further clarifications!
