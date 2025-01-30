@@ -1,282 +1,189 @@
-Here’s how you can build an **Add Employee** page in ASP.NET MVC with a dynamic **Add Education** feature using JavaScript (and optionally jQuery) without Entity Framework.
+Here's the **full JavaScript code** based on your model and requirements, including dynamic education row handling and submitting the form via **AJAX** instead of a traditional form submission.
 
----
-
-### **1. Overview of the Page**
-- The employee form will include fields like name, age, and department.
-- There will be a dynamic "Add Education" section where:
-  - One row is mandatory.
-  - Users can add or delete additional education rows dynamically.
-
----
-
-### **2. Stored Procedure**
-The stored procedure should accept employee details and education as parameters. It’s assumed the SP will be something like:
-
-```sql
-CREATE PROCEDURE SP_AddEmployee
-    @EmployeeName NVARCHAR(100),
-    @Age INT,
-    @Department NVARCHAR(100),
-    @EducationDetails NVARCHAR(MAX) -- Pass education details as JSON or CSV
-AS
-BEGIN
-    -- Example insert into Employee table
-    INSERT INTO Employees (Name, Age, Department)
-    VALUES (@EmployeeName, @Age, @Department);
-
-    -- Fetch the last inserted EmployeeID
-    DECLARE @EmployeeID INT = SCOPE_IDENTITY();
-
-    -- Parse and insert education details
-    -- (Assume JSON or CSV is parsed in SP or externally before being inserted into an Education table)
-    -- Example:
-    -- INSERT INTO Education (EmployeeID, Degree, Institution)
-END
-```
-
-You can modify this according to your setup.
-
----
-
-### **3. View**
-
-#### `AddEmployee.cshtml`
-This view includes a form for employee details and a dynamic education section using JavaScript.
-
-```html
-@{
-    ViewBag.Title = "Add Employee";
-}
-
-<h2>Add Employee</h2>
-
-<form id="addEmployeeForm">
-    <div class="mb-3">
-        <label for="employeeName" class="form-label">Employee Name</label>
-        <input type="text" id="employeeName" name="employeeName" class="form-control" required />
-    </div>
-
-    <div class="mb-3">
-        <label for="age" class="form-label">Age</label>
-        <input type="number" id="age" name="age" class="form-control" required />
-    </div>
-
-    <div class="mb-3">
-        <label for="department" class="form-label">Department</label>
-        <input type="text" id="department" name="department" class="form-control" required />
-    </div>
-
-    <h4>Education</h4>
-    <div id="educationContainer">
-        <!-- Dynamic rows will go here -->
-        <div class="row mb-2 education-row">
-            <div class="col-md-5">
-                <input type="text" name="degree[]" class="form-control" placeholder="Degree" required />
-            </div>
-            <div class="col-md-5">
-                <input type="text" name="institution[]" class="form-control" placeholder="Institution" required />
-            </div>
-            <div class="col-md-2">
-                <button type="button" class="btn btn-danger remove-education" disabled>Delete</button>
-            </div>
-        </div>
-    </div>
-    <button type="button" id="addEducation" class="btn btn-primary">Add Education</button>
-
-    <div class="mt-4">
-        <button type="submit" class="btn btn-success">Submit</button>
-    </div>
-</form>
-
-<!-- Include External JS -->
-<script src="~/js/addEmployee.js"></script>
-```
-
----
-
-### **4. External JavaScript File**
-
-#### `wwwroot/js/addEmployee.js`
+### **Complete JavaScript Code (`editEmployee.js`)**
 
 ```javascript
 $(document).ready(function () {
-    // Add a new education row
-    $("#addEducation").on("click", function () {
-        var newRow = `
-            <div class="row mb-2 education-row">
-                <div class="col-md-5">
-                    <input type="text" name="degree[]" class="form-control" placeholder="Degree" required />
-                </div>
-                <div class="col-md-5">
-                    <input type="text" name="institution[]" class="form-control" placeholder="Institution" required />
-                </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-danger remove-education">Delete</button>
-                </div>
-            </div>`;
-        $("#educationContainer").append(newRow);
-    });
+    let educationCounter = 0; // To track the number of education rows
 
-    // Remove an education row
-    $(document).on("click", ".remove-education", function () {
-        if ($(".education-row").length > 1) {
-            $(this).closest(".education-row").remove();
+    // Load existing education data when editing (from hidden input field)
+    function loadEducationRows(existingEducation) {
+        if (existingEducation.length > 0) {
+            // Clear the table first
+            $("#educationBody").empty();
+
+            // Add existing education data as rows
+            existingEducation.forEach((edu, index) => {
+                addEducationRow(edu.institute, edu.eyear, edu.eresult, index === 0);
+            });
         } else {
-            alert("At least one education row is mandatory.");
+            // If no education data, add the first mandatory row
+            addEducationRow("", "", "", true);
         }
+    }
+
+    // Function to add a new education row
+    function addEducationRow(institute = "", eyear = "", eresult = "", isMandatory = false) {
+        educationCounter++;
+
+        let rowHtml = `<tr>
+            <td><input type="text" class="form-control institute" value="${institute}" required/></td>
+            <td><input type="text" class="form-control eyear" value="${eyear}" required/></td>
+            <td><input type="text" class="form-control eresult" value="${eresult}" required/></td>
+            <td>${isMandatory ? "" : '<button type="button" class="btn btn-danger removeRow">Remove</button>'}</td>
+        </tr>`;
+
+        $("#educationBody").append(rowHtml);
+    }
+
+    // Handle adding a new education row
+    $("#addEducation").click(function () {
+        addEducationRow(); // Add a new row with empty values
     });
 
-    // Submit form via AJAX
-    $("#addEmployeeForm").on("submit", function (e) {
-        e.preventDefault();
+    // Handle removing an education row
+    $("#educationBody").on("click", ".removeRow", function () {
+        $(this).closest("tr").remove(); // Remove the clicked row
+        educationCounter--; // Decrement the counter
+    });
 
-        // Gather data
-        var employeeData = {
-            employeeName: $("#employeeName").val(),
-            age: $("#age").val(),
-            department: $("#department").val(),
-            educationDetails: []
-        };
+    // Capture form submission and serialize education data
+    $("#submitButton").click(function (event) {
+        event.preventDefault(); // Prevent normal form submission
 
-        // Gather education details
-        $(".education-row").each(function () {
-            var degree = $(this).find("input[name='degree[]']").val();
-            var institution = $(this).find("input[name='institution[]']").val();
-            employeeData.educationDetails.push({ degree: degree, institution: institution });
+        let educationData = []; // Array to store education data
+
+        // Loop through each education row and extract the values
+        $("#educationBody tr").each(function () {
+            let institute = $(this).find(".institute").val();
+            let eyear = $(this).find(".eyear").val();
+            let eresult = $(this).find(".eresult").val();
+
+            // Add the extracted data to the educationData array
+            educationData.push({ institute: institute, eyear: eyear, eresult: eresult });
         });
 
-        // Send data via AJAX
+        // Serialize the education data into a JSON string
+        let serializedEducation = JSON.stringify(educationData);
+
+        // Set the stringified education data into the hidden field
+        $("#eeducationstr").val(serializedEducation);
+
+        // Submit the form using AJAX
         $.ajax({
-            url: '/Employee/AddEmployee', // Update to match your controller and action
-            type: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify(employeeData),
+            url: "/Employee/EditemployeemasterTODB", // The POST method to update employee
+            type: "POST",
+            data: $("#editEmployeeForm").serialize(), // Serialize the entire form including education data
             success: function (response) {
                 if (response.success) {
-                    alert(response.message || "Employee added successfully!");
-                    window.location.reload(); // Reload or redirect
+                    alert("Employee updated successfully!");
+                    window.location.href = "/Employee/List"; // Redirect to the employee list
                 } else {
-                    alert(response.message || "Error adding employee.");
+                    alert("Error updating employee.");
                 }
             },
-            error: function (xhr, status, error) {
-                console.error("Error:", error);
-                alert("An unexpected error occurred.");
+            error: function () {
+                alert("An error occurred while updating employee.");
             }
         });
     });
+
+    // Fetch existing education data from hidden input field and populate the rows
+    let existingEducationStr = $("#eeducationstr").val();
+    let existingEducation = existingEducationStr ? JSON.parse(existingEducationStr) : [];
+    loadEducationRows(existingEducation); // Load the existing data when the page is loaded
 });
 ```
 
----
+### **Explanation of JavaScript Code:**
 
-### **5. Controller**
+1. **Global Variables:**
+   - `educationCounter`: Keeps track of the number of education rows added dynamically.
+   - `educationData`: Holds the serialized education data to be sent to the server.
 
-#### `EmployeeController.cs`
+2. **Loading Existing Education Data:**
+   - When the page loads, the `loadEducationRows()` function is called, which will check for any existing education data stored in the hidden input field (`eeducationstr`), and then populate the education table with that data.
+
+3. **Adding Education Row:**
+   - The `addEducationRow()` function dynamically adds new rows for education, where each row consists of fields for `Institute`, `Year`, and `Result`.
+   - The `addEducationRow()` function also handles the case where a row is mandatory (the first row cannot be removed).
+
+4. **Removing Education Row:**
+   - The `removeRow` button inside each row allows the user to delete education rows. When a row is removed, the `educationCounter` is decremented.
+
+5. **Form Submission (via AJAX):**
+   - The `submitButton` click event triggers the form submission.
+   - The education rows are looped through, and the data is collected into the `educationData` array.
+   - This array is then serialized into a JSON string and set into the hidden field `eeducationstr`.
+   - The form is submitted via an AJAX POST request to the `EditemployeemasterTODB` action.
+   - If the update is successful, the user is redirected to the employee list page. Otherwise, an error message is displayed.
+
+6. **Handling Dynamic Education Data:**
+   - When the page loads, it reads the `eeducationstr` hidden field, which holds a stringified list of education data. This data is parsed and used to populate the education table with pre-existing values.
+
+### **HTML Example (`editEmployee.cshtml`):**
+
+```html
+<form id="editEmployeeForm">
+    <!-- Other employee fields like Ecode, Ename, etc. -->
+    
+    <!-- Education table -->
+    <table id="educationTable">
+        <thead>
+            <tr>
+                <th>Institute</th>
+                <th>Year</th>
+                <th>Result</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="educationBody">
+            <!-- Education rows will be dynamically loaded here -->
+        </tbody>
+    </table>
+    <button type="button" id="addEducation" class="btn btn-primary">Add Education</button>
+
+    <!-- Hidden field to store the serialized education data -->
+    <input type="hidden" id="eeducationstr" name="eeducationstr" value="@Model.Eeducationstr" />
+
+    <!-- Submit button -->
+    <button type="button" id="submitButton" class="btn btn-success">Save Changes</button>
+</form>
+```
+
+### **Backend (Controller):**
+
+The backend controller you already have will handle the deserialization part and update the employee record as shown earlier:
 
 ```csharp
 [HttpPost]
-public JsonResult AddEmployee([FromBody] EmployeeRequestModel employee)
+public ActionResult EditemployeemasterTODB(EmployeeModel model)
 {
-    try
+    if (ModelState.IsValid)
     {
-        // Call your custom class to handle database operations
-        clsmasteradd addOperation = new clsmasteradd();
+        // Deserialize the education data (received as a JSON string)
+        model.Eeducation = JsonConvert.DeserializeObject<List<EducationMasterModel>>(model.Eeducationstr);
 
-        // Convert education details to JSON or a string format as needed by the SP
-        string educationDetails = Newtonsoft.Json.JsonConvert.SerializeObject(employee.EducationDetails);
+        // Update employee logic here (for example, call a service to save the data)
+        int result = _employeeService.UpdateEmployee(model);
 
-        // Call the method to execute SP
-        int result = addOperation.ExecuteAdd(
-            employee.EmployeeName,
-            employee.Age,
-            employee.Department,
-            educationDetails
-        );
-
-        if (result == 1) // Assuming 1 means success
+        // Return response
+        if (result > 0)
         {
-            return Json(new { success = true, message = "Employee added successfully." });
+            return Json(new { success = true });
         }
         else
         {
-            return Json(new { success = false, message = "Failed to add employee." });
+            return Json(new { success = false });
         }
     }
-    catch (Exception ex)
-    {
-        return Json(new { success = false, message = "Error: " + ex.Message });
-    }
+
+    return Json(new { success = false });
 }
 ```
 
----
-
-### **6. Request Model**
-
-#### `EmployeeRequestModel.cs`
-
-```csharp
-public class EmployeeRequestModel
-{
-    public string EmployeeName { get; set; }
-    public int Age { get; set; }
-    public string Department { get; set; }
-    public List<EducationDetail> EducationDetails { get; set; }
-}
-
-public class EducationDetail
-{
-    public string Degree { get; set; }
-    public string Institution { get; set; }
-}
-```
-
----
-
-### **7. Database Handler**
-
-#### `clsmasteradd.cs`
-
-```csharp
-using System.Data;
-using System.Data.SqlClient;
-using System.Configuration;
-
-public class clsmasteradd
-{
-    private string _connectionString;
-
-    public clsmasteradd()
-    {
-        _connectionString = ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString;
-    }
-
-    public int ExecuteAdd(string employeeName, int age, string department, string educationDetails)
-    {
-        using (SqlConnection conn = new SqlConnection(_connectionString))
-        {
-            SqlCommand cmd = new SqlCommand("SP_AddEmployee", conn);
-            cmd.CommandType = CommandType.StoredProcedure;
-
-            cmd.Parameters.AddWithValue("@EmployeeName", employeeName);
-            cmd.Parameters.AddWithValue("@Age", age);
-            cmd.Parameters.AddWithValue("@Department", department);
-            cmd.Parameters.AddWithValue("@EducationDetails", educationDetails);
-
-            conn.Open();
-            return cmd.ExecuteNonQuery(); // Assuming SP returns rows affected or 1 for success
-        }
-    }
-}
-```
-
----
-
-### **Benefits of This Approach**
-- Dynamic addition/removal of education rows.
-- Clean and modular code with separation of concerns.
-- Reusable JavaScript and server-side logic.
-
-Let me know if you need further clarifications!
+### **Summary:**
+- This solution handles **dynamically adding/removing education rows** and **submitting the form via AJAX**.
+- The `eeducationstr` field is used to send **stringified JSON data** of education records, which is processed in the controller to update the database.
+  
+Let me know if you need more assistance!
