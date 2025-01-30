@@ -337,12 +337,197 @@ public ActionResult UpdateEmployee(EmployeeModel model)
     }
 }
 ```
+Certainly! Below are both the complete JavaScript (`editEmployee.js`) and the corresponding view file (`EditEmployee.cshtml`) based on your requirements.
 
-### Conclusion:
-This solution properly handles serialization and deserialization of education data as JSON and ensures that the `EmployeeModel` is correctly updated and retrieved from the database using stored procedures. Let me know if you need further clarification or adjustments!
+### `editEmployee.js`
 
-### **Summary:**
-- This solution handles **dynamically adding/removing education rows** and **submitting the form via AJAX**.
-- The `eeducationstr` field is used to send **stringified JSON data** of education records, which is processed in the controller to update the database.
-  
-Let me know if you need more assistance!
+```javascript
+$(document).ready(function () {
+    let educationCounter = 0; // Counter for dynamically added rows
+    let educationData = []; // Array to store education data
+
+    // Function to load existing education rows when editing
+    function loadEducationRows(existingEducation) {
+        if (existingEducation.length > 0) {
+            $("#educationBody").empty(); // Clear existing rows
+            existingEducation.forEach((edu, index) => {
+                addEducationRow(edu.institute, edu.eyear, edu.eresult, index === 0);
+            });
+        } else {
+            addEducationRow("", "", "", true); // Add the first mandatory row
+        }
+    }
+
+    // Function to add a new education row
+    function addEducationRow(institute = "", eyear = "", eresult = "", isMandatory = false) {
+        educationCounter++;
+        let rowHtml = `<tr>
+            <td><input type="text" class="form-control institute" value="${institute}" required/></td>
+            <td><input type="text" class="form-control eyear" value="${eyear}" required/></td>
+            <td><input type="text" class="form-control eresult" value="${eresult}" required/></td>
+            <td>${isMandatory ? "" : '<button type="button" class="btn btn-danger removeRow">Remove</button>'}</td>
+        </tr>`;
+        $("#educationBody").append(rowHtml);
+    }
+
+    // Handle adding a new education row
+    $("#addEducation").click(function () {
+        addEducationRow();
+    });
+
+    // Handle removing an education row
+    $("#educationBody").on("click", ".removeRow", function () {
+        $(this).closest("tr").remove();
+        educationCounter--;
+    });
+
+    // Capture form submission and serialize education data
+    function prepareEducationData() {
+        educationData = [];
+        $("#educationBody tr").each(function () {
+            let institute = $(this).find(".institute").val();
+            let eyear = $(this).find(".eyear").val();
+            let eresult = $(this).find(".eresult").val();
+
+            // Push each education record into the array
+            educationData.push({ institute: institute, eyear: eyear, eresult: eresult });
+        });
+
+        // Convert the education data to a JSON string
+        let serializedEducation = JSON.stringify(educationData);
+
+        // Set the JSON string in the hidden input field
+        $("#eeducationstr").val(serializedEducation);
+    }
+
+    // Handle the form submission using AJAX (on button click)
+    $("#updateEmployeeButton").click(function (event) {
+        event.preventDefault(); // Prevent the default form submission
+
+        // Prepare education data and store it in the hidden field
+        prepareEducationData();
+
+        // Send the form data via AJAX
+        $.ajax({
+            url: "/Employee/EditemployeemasterTODB", // Your controller action URL
+            type: "POST",
+            data: $("#editEmployeeForm").serialize(), // Serialize all form data, including eeducationstr
+            success: function (response) {
+                if (response.success) {
+                    alert("Employee updated successfully!");
+                    window.location.href = "/Employee/List"; // Redirect to the employee list
+                } else {
+                    alert("Error updating employee.");
+                }
+            },
+            error: function () {
+                alert("An error occurred while updating employee.");
+            }
+        });
+    });
+
+    // Fetch existing education data and populate rows
+    let existingEducationStr = $("#eeducationstr").val(); // Get the stringified JSON from hidden input
+    let existingEducation = existingEducationStr ? JSON.parse(existingEducationStr) : []; // Parse if not empty
+    loadEducationRows(existingEducation); // Load the education rows
+});
+```
+
+### `EditEmployee.cshtml`
+
+```html
+@model YourNamespace.Models.EmployeeModel
+
+@{
+    ViewBag.Title = "Edit Employee";
+}
+
+<h2>Edit Employee</h2>
+
+<form id="editEmployeeForm">
+    <div class="form-group">
+        <label for="ecode">Employee Code</label>
+        <input type="text" class="form-control" id="ecode" name="ecode" value="@Model.ecode" required />
+    </div>
+
+    <div class="form-group">
+        <label for="ename">Employee Name</label>
+        <input type="text" class="form-control" id="ename" name="ename" value="@Model.ename" required />
+    </div>
+
+    <div class="form-group">
+        <label for="birthdate">Birthdate</label>
+        <input type="date" class="form-control" id="birthdate" name="birthdate" value="@Model.birthdate" required />
+    </div>
+
+    <div class="form-group">
+        <label for="salary">Salary</label>
+        <input type="text" class="form-control" id="salary" name="salary" value="@Model.salary" required />
+    </div>
+
+    <div class="form-group">
+        <label for="mobile_no">Mobile Number</label>
+        <input type="text" class="form-control" id="mobile_no" name="mobile_no" value="@Model.mobile_no" required />
+    </div>
+
+    <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" class="form-control" id="email" name="email" value="@Model.email" required />
+    </div>
+
+    <div class="form-group">
+        <label for="ecity">City</label>
+        <input type="text" class="form-control" id="ecity" name="ecity" value="@Model.ecity" required />
+    </div>
+
+    <div class="form-group">
+        <label for="eaddress">Address</label>
+        <input type="text" class="form-control" id="eaddress" name="eaddress" value="@Model.eaddress" required />
+    </div>
+
+    <input type="hidden" id="eeducationstr" name="eeducationstr" value="@Model.eeducationstr" />
+
+    <!-- Education Table -->
+    <table class="table" id="educationTable">
+        <thead>
+            <tr>
+                <th>Institute</th>
+                <th>Year</th>
+                <th>Result</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="educationBody">
+            <!-- Dynamic rows will be injected here by JS -->
+        </tbody>
+    </table>
+
+    <button type="button" id="addEducation" class="btn btn-success">Add Education</button>
+
+    <button type="button" id="updateEmployeeButton" class="btn btn-primary">Update Employee</button>
+</form>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="~/Scripts/editEmployee.js"></script>
+}
+```
+
+### Key Points:
+
+1. **Dynamic Education Rows**:
+   - The education rows are dynamically added to the table based on the `eeducationstr` hidden input field, which contains a JSON string representing the existing education data.
+   - Users can add new education rows or remove existing ones. The first row is mandatory and cannot be removed.
+
+2. **Form Submission**:
+   - The `Update Employee` button triggers the AJAX call, sending the form data, including the serialized `eeducationstr`, to the server for processing via the `EditemployeemasterTODB` controller action.
+
+3. **JavaScript**:
+   - The JavaScript (`editEmployee.js`) handles adding/removing education rows and serializing the education data into JSON, which is then placed into the hidden input field (`eeducationstr`) before form submission.
+
+### Additional Notes:
+
+- Replace `"YourNamespace.Models"` with the actual namespace where your `EmployeeModel` and `EducationMasterModel` are defined.
+- You can adjust the form fields, table, or button styling based on your UI requirements.
+
+This should give you a fully working implementation for editing an employee with dynamic education rows and AJAX submission. Let me know if you need further assistance!
