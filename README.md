@@ -105,3 +105,110 @@ public class UserController : Controller
 ### Conclusion
 
 Using sessions in ASP.NET MVC is straightforward and allows you to maintain user-specific data across requests. Just remember to manage session data carefully to ensure a smooth user experience.
+--------------------------------------------------------------------------------
+Yes, you can use classes instead of IDs in your jQuery selectors. However, keep in mind that using classes means that the selector will target all elements with that class, which can lead to unexpected behavior if there are multiple elements with the same class on the page.
+
+If you want to use classes for your modal content, you can modify the JavaScript and HTML accordingly. Here’s how you can do it:
+
+### Updated JavaScript File (e.g., `modal.js`)
+
+```javascript
+// modal.js
+
+function openEmployeeModal() {
+    // Load the partial view into modal body
+    $(".modalBodyContent").load("/Home/Index2", function(data) {
+        // Set the loaded content directly into the modal body
+        $(".modalBodyContent").html(data);
+        
+        // Show Bootstrap modal
+        $("#employeeModal").modal("show");
+    });
+}
+
+function closeModal() {
+    // Hide Bootstrap modal
+    $("#employeeModal").modal("hide");
+    
+    // Clear the modal content to prevent stale data
+    $(".modalBodyContent").html(""); // Clear the content when closing
+}
+```
+
+### Main View (e.g., `Index.cshtml`)
+
+Make sure to change the modal body to use a class instead of an ID:
+
+```html
+@{
+    ViewBag.Title = "Home Page";
+}
+
+<h1>Hello World !!</h1>
+<a href="javascript:void(0);" onclick="openEmployeeModal()">View Employee Details</a>
+
+<div class="modal fade" id="employeeModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modalBodyContent">
+                @* Content will be loaded here *@
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <script src="~/Scripts/modal.js"></script> <!-- Reference to your JavaScript file -->
+}
+```
+
+### Controller (e.g., `HomeController.cs`)
+
+This remains unchanged:
+
+```csharp
+public class HomeController : Controller
+{
+    public ActionResult Index()
+    {
+        return View();
+    }
+
+    public ActionResult Index2()
+    {
+        return PartialView("_EmployeeDetails"); // Ensure you have a partial view named _EmployeeDetails
+    }
+}
+```
+
+### Partial View (e.g., `_EmployeeDetails.cshtml`)
+
+This also remains unchanged:
+
+```html
+<!-- _EmployeeDetails.cshtml -->
+<div class="modal-header">
+    <h5 class="modal-title">Employee Details</h5>
+    <button type="button" class="close" onclick="closeModal()" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+<div class="modal-body">
+    <p>Hello World!!</p>
+    <p>This is a static message since no model is being used.</p>
+</div>
+<div class="modal-footer">
+    <button type="button" class="btn btn-primary">Save</button>
+    <button type="button" class="btn btn-secondary" onclick="closeModal()">Close</button>
+</div>
+```
+
+### Summary
+
+- The JavaScript now uses the class selector `.modalBodyContent` instead of the ID selector `#modalBodyContent`.
+- The modal body in the HTML has been updated to use a class instead of an ID.
+- This approach allows you to use classes, but be cautious if you have multiple elements with the same class on the page, as it will affect all of them.
+
+Using classes can be beneficial for styling and when you want to apply the same behavior to multiple elements, but for unique elements like modals, IDs are often preferred to avoid confusion.
