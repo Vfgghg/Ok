@@ -474,3 +474,147 @@ Make sure the image is loaded correctly within your HTML. Add `id="logoImage"` f
 ---
 
 ### 🔥 **Test the solution** and let me know if it works well for you! 🚀
+----------------------------------------------------------------------------------------------------------------
+I see! The issue you're facing could be due to a couple of reasons:
+
+1. **Accessing images directly in a different domain:** If your logo is hosted on a different server, jsPDF can't directly access it from the HTML, especially if there's a CORS restriction.
+2. **Image loading delay:** The `img.onload` event might not trigger properly if the image hasn't loaded before you try to convert it to Base64.
+3. **URL access issues:** If the image source URL is incorrect or inaccessible due to network issues, it will throw errors.
+
+---
+
+### 🔥 **Alternative Solution Using `jsPDF` with Base64 for Images**
+
+Let's go step-by-step and ensure everything is working smoothly for **loading and embedding the image correctly** in your PDF.
+
+---
+
+### **Steps to Resolve the Issue**
+
+#### 📌 **1. Base64 Conversion (With jsPDF) - Correct Flow**
+The **correct method** for converting the image into Base64, handling the load properly, and adding it into the PDF can be achieved like this:
+
+---
+
+### **JavaScript Code**
+
+```javascript
+window.jsPDF = window.jspdf.jsPDF;
+
+function download() {
+    var doc = new jsPDF({
+        orientation: "p", // Portrait
+        unit: "mm", // Millimeters
+        format: "a4" // A4 size
+    });
+
+    var elementHTML = document.querySelector("#contnet"); // The invoice content div
+
+    // Ensure the image is loaded correctly before processing it
+    var imgElement = document.getElementById("logoImage");
+
+    if (imgElement) {
+        // Create a new image object
+        var img = new Image();
+
+        // Ensure the image has fully loaded before processing it
+        img.onload = function () {
+            // Convert image to Base64
+            var canvas = document.createElement("canvas");
+            var ctx = canvas.getContext("2d");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            var imgData = canvas.toDataURL("image/png"); // Get the Base64 image data
+
+            // Generate the PDF
+            doc.html(elementHTML, {
+                callback: function (doc) {
+                    // Add the Base64 image to the PDF at specified position
+                    doc.addImage(imgData, "PNG", 10, 10, 50, 20); // Position and size adjustments for logo
+                    doc.output("dataurlnewwindow"); // Open in new tab
+                },
+                x: 10,
+                y: 40, // Adjust so that the text doesn't overlap the logo
+                width: 190,
+                windowWidth: elementHTML.scrollWidth,
+                scale: 1.2
+            });
+        };
+
+        // Set the image source (make sure it's accessible from the current page)
+        img.src = imgElement.src;  // Get the src attribute from the image tag in HTML
+    } else {
+        console.error("Logo image not found!");
+    }
+}
+```
+
+---
+
+### 📌 **InvoiceView.cshtml (Ensure Correct Image Source)**
+
+Make sure the image tag (`<img>`) is correctly rendered and accessible.
+
+```html
+@model YourNamespace.Models.InvoiceModel
+@{
+    ViewBag.Title = "Invoice";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!-- Invoice Content -->
+<div id="contnet" style="width: 795px; background: white; padding: 20px; font-size: 14px; line-height: 1.5;">
+    <!-- Company Logo (Ensure the logo URL is correct) -->
+    <img id="logoImage" src="@Model.report.logo" alt="Company Logo" style="width: 150px; height: auto; display: block; margin-bottom: 10px;" />
+
+    <h2 style="text-align: center;">Invoice #@Model.InvoiceNumber</h2>
+    <p>Date: @Model.InvoiceDate.ToString("dd/MM/yyyy")</p>
+    <p>Customer: @Model.CustomerName</p>
+
+    <table border="1" width="100%" cellpadding="5">
+        <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Price</th>
+            <th>Total</th>
+        </tr>
+        @foreach (var item in Model.Items)
+        {
+            <tr>
+                <td>@item.Name</td>
+                <td>@item.Quantity</td>
+                <td>@item.Price.ToString("C")</td>
+                <td>@(item.Quantity * item.Price).ToString("C")</td>
+            </tr>
+        }
+    </table>
+
+    <h3>Total: @Model.TotalAmount.ToString("C")</h3>
+</div>
+
+<!-- PDF Download Link -->
+<a href="javascript:void(0);" onclick="download()" class="btn btn-primary">Download PDF</a>
+
+<!-- External JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="~/js/invoice.js"></script>
+```
+
+---
+
+### ✅ **Key Fixes Here:**
+1. **Image Load Handling**: The script ensures that the image has completely loaded before trying to convert it to Base64.
+2. **Cross-Origin Access**: If the image URL is correct and accessible from your current domain, it should work without issues.
+3. **Ensure Image Accessibility**: Double-check that the `@Model.report.logo` URL is accessible and not blocked by CORS or network restrictions.
+
+---
+
+### ⚡ **What to Check**
+- **Ensure the image source is correct**. You can inspect the `<img>` tag in your browser to verify that the `src` points to the correct image URL.
+- **Check if the image is being blocked** by the browser for any reason (e.g., CORS, URL issues).
+- **Ensure that the image is visible on the page** before trying to convert it to Base64.
+
+---
+
+💡 **Try the changes, and if you still face issues, let me know the exact error message or behavior!** We'll get it working!
