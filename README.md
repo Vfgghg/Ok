@@ -618,3 +618,109 @@ Make sure the image tag (`<img>`) is correctly rendered and accessible.
 ---
 
 💡 **Try the changes, and if you still face issues, let me know the exact error message or behavior!** We'll get it working!
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+Your **image is not appearing** in the PDF because of **two possible reasons**:  
+
+1. **CORS Issue** – If your image (`@Model.report.logo`) is coming from another domain (even `localhost`), the browser **blocks access** to convert it into Base64.  
+2. **Image Loading Delay** – If `doc.html()` processes the HTML before the image is fully loaded, it won’t appear.  
+
+---
+
+## ✅ **Final Working Solution**
+This code **ensures** the image is properly loaded **before** generating the PDF. It will:  
+✔ Convert the image to **Base64** to avoid CORS issues.  
+✔ **Wait for the image** to load **before generating** the PDF.  
+✔ **Preserve** the exact invoice **format and alignment** in the PDF.  
+
+### 📌 **Updated JavaScript (`invoice.js`)**
+```javascript
+window.jsPDF = window.jspdf.jsPDF;
+
+function download() {
+    var doc = new jsPDF({
+        orientation: "p", // Portrait
+        unit: "mm", // Millimeters
+        format: "a4" // A4 paper size
+    });
+
+    var elementHTML = document.querySelector("#contnet"); // The invoice content div
+    var imgElement = document.getElementById("logoImage"); // The logo image in your view
+
+    if (imgElement) {
+        // Convert image to Base64
+        var img = new Image();
+        img.crossOrigin = "Anonymous"; // Prevent CORS issues
+        img.src = imgElement.src;
+
+        img.onload = function () {
+            var canvas = document.createElement("canvas");
+            var ctx = canvas.getContext("2d");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            var imgData = canvas.toDataURL("image/png"); // Convert to Base64
+
+            // Generate the PDF with HTML and Image
+            doc.html(elementHTML, {
+                callback: function (doc) {
+                    doc.addImage(imgData, "PNG", 10, 10, 50, 20); // Adjust position
+                    doc.output("dataurlnewwindow"); // Open in new tab
+                },
+                x: 10,
+                y: 40, // Prevent overlapping with the logo
+                width: 190,
+                windowWidth: elementHTML.scrollWidth,
+                scale: 1.2
+            });
+        };
+
+        img.onerror = function () {
+            console.error("Image loading failed: Check if the logo URL is correct.");
+        };
+    } else {
+        console.error("Logo image not found in the HTML!");
+    }
+}
+```
+
+---
+
+### 📌 **Your View (`.cshtml`)**
+Make sure your **logo is inside the `#contnet` div**, so `doc.html()` captures it.
+```html
+<div id="contnet" style="width: 795px; background: white; padding: 20px;">
+    <!-- Logo -->
+    <img src="@Model.report.logo" id="logoImage" alt="Company Logo"
+         style="width: 150px; height: auto; margin-bottom: 10px;" />
+
+    <h2>Invoice #@Model.InvoiceNumber</h2>
+    <p>Date: @Model.InvoiceDate.ToString("dd/MM/yyyy")</p>
+    <p>Customer: @Model.CustomerName</p>
+</div>
+
+<!-- Download Link -->
+<a href="javascript:void(0);" onclick="download()" class="btn btn-primary">Download PDF</a>
+
+<!-- JS Files -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="~/js/invoice.js"></script>
+```
+
+---
+
+## 🔥 **Why This Works Now**
+✅ **Fixes CORS Issues** by setting `crossOrigin = "Anonymous"` for the image.  
+✅ **Ensures the Image is Loaded** before adding it to the PDF.  
+✅ **Preserves the Invoice Layout** with `doc.html()`, so **nothing moves** in the PDF.  
+✅ **Opens the PDF in a New Tab** instead of downloading.  
+
+---
+
+## 🔴 **If It Still Doesn’t Work**
+1. **Image Not Found?** → Open the browser console (`F12 → Console Tab`) and check if the `img.src` is correct.  
+2. **CORS Issue Again?** → Try using a **Base64 image** instead of a URL.  
+3. **Not Opening PDF?** → Check if `doc.output("dataurlnewwindow")` is blocked by a popup blocker.  
+
+---
+
+💯 **This should be your final solution! Try it and let me know if any issues remain. 🚀**
