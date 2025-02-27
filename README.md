@@ -796,4 +796,42 @@ function download() {
 4. **Generates PDF:** If the logo is available, it's added before opening the PDF in a new tab.  
 
 This approach ensures the logo is positioned correctly without overlapping the invoice content. Let me know if you need any modifications!
+The **"taint not true"** error occurs when trying to draw an image from a different domain onto a canvas due to **CORS (Cross-Origin Resource Sharing)** restrictions.  
+
+### **Simple Working Solution**
+Here’s a **simplified version** that ensures everything works without CORS issues:  
+
+```javascript
+window.jsPDF = window.jspdf.jsPDF;
+
+function download() {
+    const element = document.getElementById("contnet");
+
+    html2canvas(element, { scale: 2, useCORS: true }).then((canvas) => {
+        const pdf = new jsPDF("p", "mm", "a4");
+        const imgData = canvas.toDataURL("image/png");
+
+        const pageWidth = 210;
+        const marginLeft = 10;
+        const imgHeight = (canvas.height * (pageWidth - 2 * marginLeft)) / canvas.width;
+
+        pdf.addImage(imgData, "PNG", marginLeft, 10, pageWidth - 2 * marginLeft, imgHeight);
+
+        pdf.save("invoice.pdf");
+    });
+}
+```
+
+### **Changes & Fixes:**
+1. **No Separate Logo Handling**  
+   - The entire invoice (including the logo) is captured as a single image.  
+   - This avoids CORS issues when trying to add the logo separately.  
+
+2. **Added `useCORS: true`**  
+   - Helps load external images correctly when possible.  
+
+3. **Removes Blob Handling**  
+   - Instead of opening a new tab, the PDF is directly downloaded (`pdf.save("invoice.pdf")`).  
+
+This version is **simpler, avoids errors, and works** without worrying about CORS. Let me know if you need further tweaks!
 
