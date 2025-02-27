@@ -831,7 +831,57 @@ function download() {
    - Helps load external images correctly when possible.  
 
 3. **Removes Blob Handling**  
-   - Instead of opening a new tab, the PDF is directly downloaded (`pdf.save("invoice.pdf")`).  
+   - Instead of opening a new tab, the PDF is directly downloaded (`pdf.save("invoice.pdf")`).
+  If you already have the **Base64 image**, you can **directly add it** to the PDF without worrying about CORS issues. Here’s a **simpler working version** that ensures both the **logo and invoice content** appear correctly.  
+
+---
+
+### **Updated Code (Using Base64 Logo)**
+```javascript
+window.jsPDF = window.jspdf.jsPDF;
+
+function download() {
+    const element = document.getElementById("contnet");
+    const base64Logo = "data:image/png;base64, YOUR_BASE64_STRING_HERE"; // Replace with actual Base64 string
+
+    html2canvas(element, { scale: 2 }).then((canvas) => {
+        const pdf = new jsPDF("p", "mm", "a4");
+        const pageWidth = 210;
+        const marginLeft = 10;
+        let yOffset = 10; // Initial Y position
+
+        // Add logo at the top-left (adjust width & height as needed)
+        pdf.addImage(base64Logo, "PNG", marginLeft, yOffset, 40, 20);
+        yOffset += 30; // Move content down so it doesn't overlap with the logo
+
+        // Convert invoice content to an image
+        const imgData = canvas.toDataURL("image/png");
+        const imgHeight = (canvas.height * (pageWidth - 2 * marginLeft)) / canvas.width;
+
+        // Add invoice content below the logo
+        pdf.addImage(imgData, "PNG", marginLeft, yOffset, pageWidth - 2 * marginLeft, imgHeight);
+
+        // Save the PDF
+        pdf.save("invoice.pdf");
+    });
+}
+```
+
+---
+
+### **Why This Works Perfectly?**
+✅ **No CORS Issues** → Since the logo is already in **Base64**, there's **no need to load it from an external source**.  
+✅ **Proper Alignment** → The **logo stays at the top**, and invoice content starts **below it**.  
+✅ **Simple & Fast** → No extra processing, everything is added directly.  
+
+---
+
+### **Next Steps**
+- Replace `"YOUR_BASE64_STRING_HERE"` with your **actual Base64-encoded image**.  
+- If needed, adjust `40, 20` (width & height of the logo) for better sizing.  
+
+This is the simplest and most reliable way to **generate a PDF with a logo and invoice content**. Let me know if you need further adjustments!
+   - 
 
 This version is **simpler, avoids errors, and works** without worrying about CORS. Let me know if you need further tweaks!
 
