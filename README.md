@@ -719,8 +719,81 @@ Make sure your **logo is inside the `#contnet` div**, so `doc.html()` captures i
 ## 🔴 **If It Still Doesn’t Work**
 1. **Image Not Found?** → Open the browser console (`F12 → Console Tab`) and check if the `img.src` is correct.  
 2. **CORS Issue Again?** → Try using a **Base64 image** instead of a URL.  
-3. **Not Opening PDF?** → Check if `doc.output("dataurlnewwindow")` is blocked by a popup blocker.  
+3. **Not Opening PDF?** → Check if `doc.output("dataurlnewwindow")` is blocked by a popup blocker.
+4. 
 
 ---
 
 💯 **This should be your final solution! Try it and let me know if any issues remain. 🚀**
+
+Here’s the corrected and combined version of your code that properly integrates both HTML content and an image (e.g., a logo) into the generated PDF:  
+
+### **Key Improvements:**  
+1. Uses `html2canvas` to capture the invoice content (`#invoiceContent`).  
+2. Ensures the logo image (`#logoImage`) is properly loaded before adding it to the PDF.  
+3. Opens the generated PDF in a new tab.  
+
+---
+
+### **Final Code with Image Support**
+```javascript
+window.jsPDF = window.jspdf.jsPDF;
+
+function download() {
+    const element = document.getElementById("invoiceContent"); // The invoice content div
+    const imgElement = document.getElementById("logoImage"); // The logo image element
+
+    html2canvas(element, { scale: 2 }).then((canvas) => {
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF("p", "mm", "a4");
+
+        const imgWidth = 210; // A4 width in mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        // Add the invoice content as an image
+        pdf.addImage(imgData, "PNG", 0, 40, imgWidth, imgHeight);
+
+        // Ensure the logo is loaded before adding it
+        if (imgElement) {
+            const logo = new Image();
+            logo.onload = function () {
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+                canvas.width = logo.width;
+                canvas.height = logo.height;
+                ctx.drawImage(logo, 0, 0);
+                const logoData = canvas.toDataURL("image/png");
+
+                // Add the logo at the top-left corner (adjust position as needed)
+                pdf.addImage(logoData, "PNG", 10, 10, 50, 20);
+
+                // Convert PDF to Blob and open in a new tab
+                const pdfBlob = pdf.output("blob");
+                const pdfUrl = URL.createObjectURL(pdfBlob);
+                window.open(pdfUrl, "_blank");
+            };
+
+            // Set the logo source
+            logo.src = imgElement.src;
+        } else {
+            console.error("Logo image not found!");
+
+            // If no logo, directly generate the PDF
+            const pdfBlob = pdf.output("blob");
+            const pdfUrl = URL.createObjectURL(pdfBlob);
+            window.open(pdfUrl, "_blank");
+        }
+    });
+}
+```
+
+---
+
+### **How It Works:**  
+1. **Captures Invoice Content:** Uses `html2canvas` to capture `#invoiceContent` as an image.  
+2. **Adds Invoice Image:** Inserts the invoice content into the PDF at (0,40) to leave space for the logo.  
+3. **Processes Logo Image:** Loads `#logoImage`, converts it to a Base64 image, and inserts it at (10,10).  
+4. **Generates PDF:** If the logo is available, it's added before opening the PDF in a new tab.  
+
+This approach ensures the logo is positioned correctly without overlapping the invoice content. Let me know if you need any modifications!
+
