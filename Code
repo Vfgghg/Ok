@@ -251,4 +251,148 @@ function download11() {
 
 </body>
 </html>
+--------------------------------------------------------------------------------------------------------------------------
+document.addEventListener("DOMContentLoaded", function () {
+    window.jsPDF = window.jspdf.jsPDF;
+});
+
+async function download11() {
+    const invoice = document.getElementById("report11");
+    const rows = invoice.querySelectorAll(".items tbody tr");
+    const rowsPerPage = 12; // Number of rows per page
+    const totalPages = Math.ceil(rows.length / rowsPerPage);
+
+    let pdf = new jsPDF({
+        unit: 'px',
+        format: 'a4',
+    });
+
+    let hiddenContainer = document.createElement("div");
+    hiddenContainer.style.position = "absolute";
+    hiddenContainer.style.left = "-9999px"; // Hide from view
+    document.body.appendChild(hiddenContainer);
+
+    // Loop through pages to handle content pagination
+    for (let i = 0; i < totalPages; i++) {
+        let clonedInvoice = invoice.cloneNode(true);
+        let clonedTableBody = clonedInvoice.querySelector(".items tbody");
+        clonedTableBody.innerHTML = ""; // Clear table for this page
+
+        // Append rows for the current page
+        for (let j = i * rowsPerPage; j < (i + 1) * rowsPerPage && j < rows.length; j++) {
+            clonedTableBody.appendChild(rows[j].cloneNode(true));
+        }
+
+        // Ensure images reload for the cloned invoice
+        let logoImg = clonedInvoice.querySelector("#logoImage");
+        let stampImg = clonedInvoice.querySelector("#stampImage");
+
+        // Reload the images from hidden inputs
+        if (logoImg) logoImg.src = document.getElementById("logoUrl").value;
+        if (stampImg) stampImg.src = document.getElementById("stampUrl").value;
+
+        // Clone and append the Total and Stamp section to the cloned invoice
+        let totalSection = clonedInvoice.querySelector(".total");
+        let stampSection = clonedInvoice.querySelector("#stampImage");
+
+        // Ensure that total section (Total: $175) is included
+        if (totalSection) clonedInvoice.appendChild(totalSection.cloneNode(true));
+        if (stampSection) clonedInvoice.appendChild(stampSection.cloneNode(true));
+
+        hiddenContainer.appendChild(clonedInvoice);
+
+        // Wait for images to load before rendering the canvas
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Generate the canvas with proper scaling and page width/height
+        let canvas = await html2canvas(clonedInvoice, {
+            scale: 2, // Increase scale for better quality
+            logging: true,
+            width: 794, // A4 page width in px
+            height: 1123, // A4 page height in px
+            windowWidth: 794, // Ensure we are capturing the entire content area
+            windowHeight: 1123, // Make sure all content fits within the page
+        });
+
+        // If this is not the first page, add a new page to the PDF
+        if (i > 0) {
+            pdf.addPage();
+        }
+
+        // Add the captured image of the page to the PDF
+        let imgData = canvas.toDataURL("image/png");
+
+        // Add the image to the PDF, positioned correctly on A4 size
+        pdf.addImage(imgData, 'PNG', 0, 0, 440, 800);
+
+        hiddenContainer.innerHTML = ""; // Clear for the next page
+    }
+
+    document.body.removeChild(hiddenContainer); // Cleanup the hidden container after use
+
+    // Open the generated PDF in a new tab
+    const pdfData = pdf.output('blob');
+    const pdfUrl = URL.createObjectURL(pdfData);
+    window.open(pdfUrl, '_blank');
+}
+------------------------------------------------
+@{
+    ViewBag.Title = "Index";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<div class="invoice" id="report11">
+    <div class="header">
+        <!-- Logo Image -->
+        <img id="logoImage" src="https://freepngimg.com/download/adidas/58136-logo-brand-adidas-sports-free-transparent-image-hd.png" alt="Company Logo">
+        <h1>Invoice</h1>
+    </div>
+
+    <div class="details pa4">
+        <p><strong>Invoice Number:</strong> INV-001</p>
+        <p><strong>Date:</strong> 01/10/2023</p>
+        <p><strong>Customer:</strong> John Doe</p>
+    </div>
+
+    <div class="items">
+        <table>
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 1; i <= 1; i++)
+                {
+                    <tr>
+                        <td>Product @i</td>
+                        <td>@(i % 5 + 1)</td> <!-- Random quantity (1 to 5) -->
+                        <td>$@((i * 10).ToString("0.00"))</td> <!-- Unit price -->
+                        <td>$@((i * 10 * (i % 5 + 1)).ToString("0.00"))</td> <!-- Total -->
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="total pa4">
+        <h3>Total: $175.00</h3>
+    </div>
+
+    <!-- Stamp Image -->
+    <img id="stampImage" src="https://www.onlygfx.com/wp-content/uploads/2017/12/ok-stamp-2-1024x1024.png" alt="Stamp Logo" class="small-image">
+</div>
+
+<div class="download-link">
+    <a href="javascript:void(0);" onclick="download11()" class="btn">Download PDF</a>
+</div>
+
+<script src="~/Content/Report1.js"></script>
+<!-- Include Required Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+<input type="hidden" id="logoUrl" value="https://freepngimg.com/download/adidas/58136-logo-brand-adidas-sports-free-transparent-image-hd.png">
+<input type="hidden" id="stampUrl" value="https://www.onlygfx.com/wp-content/uploads/2017/12/ok-stamp-2-1024x1024.png">
 
