@@ -396,3 +396,83 @@ async function download11() {
 <input type="hidden" id="logoUrl" value="https://freepngimg.com/download/adidas/58136-logo-brand-adidas-sports-free-transparent-image-hd.png">
 <input type="hidden" id="stampUrl" value="https://www.onlygfx.com/wp-content/uploads/2017/12/ok-stamp-2-1024x1024.png">
 
+------------------------------------------------------------------------------
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Adjust alignment for better centering */
+            height: 100vh;
+            overflow: auto; /* Allow scrolling */
+        }
+
+        .invoice {
+            background-color: white;
+            width: 794px; /* Exact A4 width at 96 DPI */
+            min-height: 1123px; /* Min A4 height at 96 DPI */
+            border: 1px solid black;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+            padding: 0px;
+            box-sizing: border-box; /* Ensures padding does not affect size */
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+            .header img {
+                max-width: 150px;
+            }
+
+        .items table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .items th, .items td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .total {
+            margin-top: 20px;
+            text-align: right;
+            font-weight: bold;
+        }
+
+        .download-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .small-image {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            display: block;
+            margin: 10px auto;
+        }
+
+        .pa4 {
+            padding: 4px;
+        }
+    </style>
+</head>
+<body>
+    @RenderBody()
+</body>
+</html>
