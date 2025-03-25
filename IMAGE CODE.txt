@@ -1,0 +1,198 @@
+// Function to load an image through a proxy
+function loadImageWithProxy(imageUrl, imgElementId) {
+    const proxyUrl = `/Home/ProxyImage?url=${encodeURIComponent(imageUrl)}`;
+
+    console.log("Fetching image through proxy:", proxyUrl);
+
+    const img = document.getElementById(imgElementId);
+
+    if (!img) {
+        console.error("Image element not found with ID:", imgElementId);
+        return;
+    }
+
+    img.onload = function () {
+        console.log("Image loaded successfully.");
+    };
+
+    img.onerror = function () {
+        console.error("Failed to load image from proxy:", proxyUrl);
+    };
+
+    img.src = proxyUrl;
+}
+
+// Function to convert the image to Base64 using the proxy
+function convertImageToBase64(imageUrl) {
+    // Use a proxy to fetch the image and convert it to Base64
+    fetch(`/Home/ProxyImage?url=${encodeURIComponent(imageUrl)}`)
+        .then(response => response.blob())
+        .then(blob => {
+            const reader = new FileReader();
+            reader.onloadend = function () {
+                const base64data = reader.result;
+                console.log('Base64 Image:', base64data);
+                // Do something with the base64 string (e.g., display, store, etc.)
+            };
+            reader.readAsDataURL(blob);
+        })
+        .catch(error => {
+            console.error('Error converting image to base64:', error);
+        });
+}
+
+// Initialize images after the document loads
+window.onload = function () {
+    const logoUrl = document.getElementById('logoUrl').value;
+    const stampUrl = document.getElementById('stampUrl').value;
+
+    // Load images dynamically using the ASP.NET MVC Proxy
+    loadImageWithProxy(logoUrl, 'logoImage');
+    loadImageWithProxy(stampUrl, 'stampImage');
+};
+
+// Function to download the content as a PDF
+function download11() {
+    const { jsPDF } = window.jspdf;
+    const invoiceElement = document.getElementById('report11');
+
+    // Ensure images are loaded before capturing the invoice
+    Promise.all([
+        new Promise((resolve, reject) => {
+            const logoImage = document.getElementById('logoImage');
+            if (logoImage.complete) resolve();
+            else {
+                logoImage.onload = resolve;
+                logoImage.onerror = reject;
+            }
+        }),
+        new Promise((resolve, reject) => {
+            const stampImage = document.getElementById('stampImage');
+            if (stampImage.complete) resolve();
+            else {
+                stampImage.onload = resolve;
+                stampImage.onerror = reject;
+            }
+        })
+    ])
+        .then(() => {
+            html2canvas(invoiceElement, {
+                logging: true,
+                letterRendering: true,
+                useCORS: true,
+                scale: 2 // High resolution
+            }).then(function (canvas) {
+                const pdf = new jsPDF();
+                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 10, 180, 0);
+                const pdfUrl = pdf.output('bloburl');
+                window.open(pdfUrl, '_blank');
+            });
+        })
+        .catch((error) => {
+            console.error("Error loading images:", error);
+        });
+}
+
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Web;
+using System.Web.Mvc;
+using System.Xml.Linq;
+
+namespace ok_test.Controllers
+{
+    public class HomeController : Controller
+    {
+        public ActionResult Index()
+        { 
+            return View();
+        }
+
+        public ActionResult ProxyImage(string url)
+        {
+            try
+            {
+                using (var client = new WebClient())
+                {
+                    // Get the image data
+                    var imageData = client.DownloadData(url);
+
+                    // Return the image as a byte array with proper MIME type
+                    return File(imageData, "image/png");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Handle errors and return a default image or an error message
+                Console.WriteLine("Error fetching image: " + ex.Message);
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest, "Error fetching image.");
+            }
+        }
+    }
+}
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+@{
+    ViewBag.Title = "Index";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<div class="invoice" id="report11">
+    <div class="header">
+        <!-- Logo Image -->
+        <img id="logoImage" src="https://images.metabill.in/uploadlogo/DEMO_ESJAY_IT_ORGANIZATION_LOGO_03_01_2025.png" alt="Logo Image">
+        <h1>Invoice</h1>
+    </div>
+
+    <div class="details pa4">
+        <p><strong>Invoice Number:</strong> INV-001</p>
+        <p><strong>Date:</strong> 01/10/2023</p>
+        <p><strong>Customer:</strong> John Doe</p>
+    </div>
+
+    <div class="items">
+        <table>
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 1; i <= 2; i++)
+                {
+                    <tr>
+                        <td>Product @i</td>
+                        <td>@(i % 5 + 1)</td> <!-- Random quantity (1 to 5) -->
+                        <td>$@((i * 10).ToString("0.00"))</td> <!-- Unit price -->
+                        <td>$@((i * 10 * (i % 5 + 1)).ToString("0.00"))</td> <!-- Total -->
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="total pa4">
+        <h3>Total: $175.00</h3>
+    </div>
+    <!-- Stamp Image -->
+    <img id="stampImage" src="https://images.metabill.in/uploadlogo/DEMO_ESJAY_IT_ORGANIZATION_LOGO_03_01_2025.png" alt="Stamp Logo" class="small-image">
+</div>
+
+<div class="download-link">
+    <a href="javascript:void(0);" onclick="download11()" class="btn">Download PDF</a>
+</div>
+
+<!-- Include Required Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+<input type="hidden" id="logoUrl" value="https://images.metabill.in/uploadlogo/DEMO_ESJAY_IT_ORGANIZATION_LOGO_03_01_2025.png">
+<input type="hidden" id="stampUrl" value="https://images.metabill.in/uploadlogo/DEMO_ESJAY_IT_ORGANIZATION_LOGO_03_01_2025.png">
+
+<script src="~/Content/Report1.js"></script>
