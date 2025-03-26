@@ -1,0 +1,110 @@
+using System;
+using System.Net;
+using System.Web.Mvc;
+
+namespace ok_test.Controllers
+{
+    public class HomeController : Controller
+    {
+        public ActionResult Index()
+        {
+            return View();
+        }
+
+        public JsonResult ProxyImage(string url)
+        {
+            try
+            {
+                using (var client = new WebClient())
+                {
+                    // Download image data
+                    var imageData = client.DownloadData(url);
+
+                    // Convert to Base64 string
+                    string base64String = Convert.ToBase64String(imageData);
+                    string base64Url = $"data:image/png;base64,{base64String}";
+
+                    return Json(new { success = true, base64 = base64Url }, JsonRequestBehavior.AllowGet);
+                }
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message }, JsonRequestBehavior.AllowGet);
+            }
+        }
+    }
+}
+---------------------------------------
+
+
+// Function to fetch image as Base64 and update the image source
+function fetchBase64Image(imageUrl, imgElementId) {
+    $.ajax({
+        url: '/Home/ProxyImage',
+        type: 'GET',
+        data: { url: imageUrl },
+        dataType: 'json',
+        success: function (response) {
+            if (response.success) {
+                $('#' + imgElementId).attr('src', response.base64);
+                console.log("Image loaded successfully for:", imgElementId);
+            } else {
+                console.error("Error fetching image:", response.error);
+            }
+        },
+        error: function (xhr, status, error) {
+            console.error("AJAX error:", status, error);
+        }
+    });
+}
+
+// Function to initialize image loading
+function initializeImages() {
+    const logoUrl = $('#logoUrl').val();
+    const stampUrl = $('#stampUrl').val();
+
+    fetchBase64Image(logoUrl, 'logoImage');
+    fetchBase64Image(stampUrl, 'stampImage');
+}
+
+// Function to download the content as a PDF with custom filename
+
+function download11() {
+    const { jsPDF } = window.jspdf;
+    const invoiceElement = document.getElementById('report11');
+
+    html2canvas(invoiceElement, {
+        scale: 2,
+        useCORS: true
+    }).then(canvas => {
+        const pdf = new jsPDF();
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 10, 180, 0);
+
+        // Convert PDF to Blob
+        const pdfBlob = pdf.output('blob');
+
+        // Create a temporary URL
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+
+        // Open PDF in a new tab
+        const newTab = window.open();
+        newTab.document.write(`
+            <html>
+                <head><title>Invoice_001.pdf</title></head>
+                <body style="margin:0">
+                    <embed width="100%" height="100%" src="${pdfUrl}" type="application/pdf">
+                </body>
+            </html>
+        `);
+
+        // Cleanup the object URL to prevent memory leaks
+        setTimeout(() => URL.revokeObjectURL(pdfUrl), 10000);
+    });
+}
+
+
+
+// Initialize images after the document loads
+$(document).ready(function () {
+    initializeImages();
+});

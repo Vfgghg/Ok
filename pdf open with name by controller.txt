@@ -1,0 +1,132 @@
+To ensure that the PDF opens in a new tab with a custom filename instead of a blob URL, you need to generate the PDF on the client side and send it to the server for processing. The server will then serve the file with the correct `Content-Disposition` header.
+
+---
+
+## **✅ Steps to Implement**
+1. **Generate the PDF in JavaScript** and send it as a Blob to the server.
+2. **Server receives the PDF**, saves it temporarily, and returns a URL.
+3. **Client opens the PDF from the server** with a real filename.
+
+---
+
+## **🔹 Updated JavaScript (Client Side)**
+```javascript
+function download11() {
+    const { jsPDF } = window.jspdf;
+    const invoiceElement = document.getElementById('report11');
+
+    html2canvas(invoiceElement, {
+        scale: 2,
+        useCORS: true
+    }).then(canvas => {
+        const pdf = new jsPDF();
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 10, 180, 0);
+
+        // Convert PDF to Blob
+        const pdfBlob = pdf.output('blob');
+
+        // Create FormData to send to the server
+        const formData = new FormData();
+        formData.append("pdfFile", pdfBlob, "Invoice_001.pdf");
+
+        // Send the PDF to the server
+        fetch('/Home/SavePdf', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Open PDF in a new tab with the correct filename
+                window.open(data.fileUrl, '_blank');
+            } else {
+                console.error("Error saving PDF:", data.error);
+            }
+        })
+        .catch(error => {
+            console.error("Fetch error:", error);
+        });
+    });
+}
+```
+
+---
+
+## **🔹 Updated C# (Server Side)**
+```csharp
+using System;
+using System.IO;
+using System.Web;
+using System.Web.Mvc;
+
+namespace ok_test.Controllers
+{
+    public class HomeController : Controller
+    {
+        public ActionResult Index()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public JsonResult SavePdf()
+        {
+            try
+            {
+                if (Request.Files.Count > 0)
+                {
+                    HttpPostedFileBase file = Request.Files[0];
+                    string fileName = "Invoice_001.pdf";
+                    string filePath = Path.Combine(Server.MapPath("~/GeneratedPdfs/"), fileName);
+
+                    // Ensure directory exists
+                    Directory.CreateDirectory(Server.MapPath("~/GeneratedPdfs/"));
+
+                    // Save file
+                    file.SaveAs(filePath);
+
+                    // Generate URL to access the file
+                    string fileUrl = Url.Content("~/GeneratedPdfs/" + fileName);
+
+                    return Json(new { success = true, fileUrl = fileUrl });
+                }
+                return Json(new { success = false, error = "No file received" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        public ActionResult ViewPdf()
+        {
+            string filePath = Server.MapPath("~/GeneratedPdfs/Invoice_001.pdf");
+
+            if (!System.IO.File.Exists(filePath))
+                return HttpNotFound();
+
+            return File(filePath, "application/pdf", "Invoice_001.pdf");
+        }
+    }
+}
+```
+
+---
+
+## **🚀 How It Works**
+1. **JavaScript creates the PDF** and sends it to `/Home/SavePdf`.
+2. **Server saves the PDF** in `~/GeneratedPdfs/` and returns the URL.
+3. **Client opens the file from the server** (`window.open(data.fileUrl, '_blank')`).
+4. **Browser displays it with the correct filename.**
+
+✅ **No more blob URL!**  
+✅ **PDF opens in a new tab with the correct filename.**  
+✅ **User can still download it manually from the browser.**  
+
+---
+
+## **🎯 Important Notes**
+- Ensure the `GeneratedPdfs` folder exists in your project (`~/GeneratedPdfs/`).
+- If you want to **auto-delete** old PDFs, schedule cleanup in the background.
+
+This is the **best solution** to get a **real filename in the browser while opening in a new tab!** 🚀
